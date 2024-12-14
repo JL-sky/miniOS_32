@@ -137,8 +137,20 @@ p_mode_start:
     mov ax,SELECTOR_VIDEO                   ;初始化显存段寄存器，显存段的选择子放入gs寄存器
     mov gs,ax
 
+;------------- 加载内核 ----------------
+;将内核从磁盘的9号扇区加载的内存的KERNEL_BIN_BASE_ADDR地址处
+    mov eax,KERNEL_START_SECTOR
+    mov ebx,KERNEL_BIN_BASE_ADDR
+    mov ecx,200 
+    call rd_disk_m_32
+
 ;------------- 开启分页机制 -------------
+;1.构建页表和页目录表
+;2.将页目录表的位置加载到控制寄存器cr3
+;3.置cr0寄存器的PG位为1，打开分页机制
+
     call setup_page                         ;创建页目录表和页表，并初始化页内存位图
+    ;以下将各段描述符的基址迁移到虚拟内存空间中                                
     mov ebx,[gdt_ptr+2]                     ;gdt_ptr+2表示GDT_BASE,也就是GDT的起始地址
     or dword [ebx+0x18+4],0xc0000000        ;ebx中保存着GDT_BASE，0x18=24，故ebx+0x18表示取出显存段的起始地址
                                             ;+4表示取出段描述符的高32位，之后和0xc0000000进行或操作
@@ -147,18 +159,74 @@ p_mode_start:
     add dword [gdt_ptr+2],0xc0000000        ;同理将GDT_BASE的起始地址也增加3G
     add esp,0xc0000000                      ;同理将esp栈指针的起始地址也增加3G
 
-    mov eax,PAGE_DIR_TABLE_POS
+    mov eax,PAGE_DIR_TABLE_POS              ;将页目录表的位置加载到控制寄存器cr3
     mov cr3,eax
 
-    mov eax,cr0                             ;打开cr0的PG位
+    mov eax,cr0                             ;打开cr0的PG位，开启分页机制
     or eax,0x80000000
     mov cr0,eax
 
     lgdt [gdt_ptr]                          ;开启分页后，用gdt的新地址重新加载
 
-    mov byte [gs:160],'V'
+;------------- 进入内核函数 ----------------
+enter_kernel:
+    call kernel_init
+    mov esp,0xc009f000
+    jmp KERNEL_ENTRY_POINT
 
-    jmp $
+kernel_init:
+    xor eax,eax
+    xor ebx,ebx                             ;记录程序头表(段)地址
+    xor ecx,ecx                             ;记录程序头表(段头表)中程序头数量
+    xor edx,edx                             ;记录程序头表中每个条目的大小
+ 
+    mov dx,[KERNEL_BIN_BASE_ADDR+42]        ;42字节处是e_phentsize，即程序头中每个条目的大小
+    mov ebx,[KERNEL_BIN_BASE_ADDR+28]       ;28字节处是e_phoff，即程序头表的偏移
+    add ebx,KERNEL_BIN_BASE_ADDR            ;程序头表的偏移加上内核在内存中的起始地址，就是程序头表的起始物理地址
+    mov cx,[KERNEL_BIN_BASE_ADDR+44]        ;44字节处是e_phnum，即程序头表(段头表)中程序头数量
+ 
+;遍历段头表，取出程序中的每一个段，将其拷贝到对应的虚拟地址空间中
+.each_segment:
+;检查段头表中的段头是会否是空段(PT_NULL)，如果不是就将该段拷贝到对应区域，否则就继续遍历下一个段头
+    cmp byte [ebx+0],PT_NULL                ;比较p_type是否等于PT_NULL，若相等说明程序头未使用
+    je .PTNULL                              ;若相等则跳转到.PTNULL
+ 
+    ;为函数memcpy(dst,src,size)压入参数，参数依次从右向左压入，这样函数就可以从左到右取出参数
+    push dword [ebx+16]                     ;实参size，程序头表偏移16字节的地方p_filesz，本段在文件内的大小
+ 
+    mov eax,[ebx+4]                         ;程序头表偏移4字节的地方p_offset，本段在文件内的起始偏移
+    add eax,KERNEL_BIN_BASE_ADDR            ;本段的偏移加上内核在内存中的起始地址，就是本段的物理地址
+    push eax                                ;实参src
+ 
+    push dword [ebx+8]                      ;实参dst，p_vaddr，本段在内存中的起始虚拟地址
+ 
+    call mem_cpy
+    add esp,12                              ;回收mem_cpy的栈帧空间
+ 
+.PTNULL:
+    add ebx,edx                             ;指向下一个段头
+    loop .each_segment                      ;继续遍历段头表
+    ret
+
+;逐字节拷贝函数，将esi指向的内存区域的size个字节拷贝到edi指向的区域
+mem_cpy:
+    cld                                    ;指明拷贝时esi与edi的增长方向是向上的
+    push ebp                               ;保存ebp
+    mov ebp,esp                            ;将esp指向ebp
+    push ecx                               ;rep指令会用到ecx的循环计数，而外层函数也用到了ecx的值，
+                                           ;因此此处需要将外层函数的ecx的值进行备份
+
+    mov edi,[ebp+8]                        ;参数dst
+    mov esi,[ebp+12]                       ;参数src
+    mov ecx,[ebp+16]                       ;参数size
+    rep movsb                              ;rep(repeat)指令，重复执行movsb指令
+                                           ;movsb指令，s表示string，b表示byte，
+                                           ;即将esi指向的内存拷贝一个字节给edi指向的内存
+                                           ;因此本条指令表示逐字节拷贝，拷贝的字节个数为ecx的值
+ 
+    pop ecx                                ;取出备份的值
+    pop ebp                                ;返回上层函数
+    ret
 
 ;------------- 创建页目录表和页表 -------------
 ;初始化页目录表和页表
@@ -218,4 +286,87 @@ setup_page:
     inc esi                                         ; 增加要设置的页目录表项的偏移
     add eax,0x1000                                  ; eax指向下一个页表的位置，由于之前设定了属性，所以eax是一个完整的指向下一个页表的页目录表项
     loop .create_kernel_pde                         ; 循环设定254个页目录表项
+    ret
+
+
+; ------ 32位模式下从磁盘中加载文件到内存 ------
+rd_disk_m_32:
+    ;参数：
+        ; eax=LBA扇区号
+        ; ebx=将数据写入的内存地址
+        ; ecx=读入的扇区数
+    mov esi,eax	                                        ;备份eax
+    mov di,cx		                                    ;备份cx
+                                                        ;读写硬盘:
+                                                        ;第1步：选择特定通道的寄存器，设置要读取的扇区数
+    mov dx,0x1f2
+    mov al,cl
+    out dx,al                                           ;读取的扇区数
+ 
+    mov eax,esi	                                        ;恢复ax
+ 
+                                                        ;第2步：在特定通道寄存器中放入要读取扇区的地址，将LBA地址存入0x1f3 ~ 0x1f6
+                                                        ;LBA地址7~0位写入端口0x1f3
+    mov dx,0x1f3                       
+    out dx,al                          
+ 
+                                                        ;LBA地址15~8位写入端口0x1f4
+    mov cl,8
+    shr eax,cl
+    mov dx,0x1f4
+    out dx,al
+ 
+                                                        ;LBA地址23~16位写入端口0x1f5
+    shr eax,cl
+    mov dx,0x1f5
+    out dx,al
+ 
+    shr eax,cl
+    and al,0x0f	                                        ;lba第24~27位
+    or al,0xe0	                                        ; 设置7～4位为1110,表示lba模式
+    mov dx,0x1f6
+    out dx,al
+ 
+                                                        ;第3步：向0x1f7端口写入读命令，0x20 
+    mov dx,0x1f7
+    mov al,0x20                        
+    out dx,al
+ 
+                                                        ;第4步：检测硬盘状态
+.not_ready:
+                                                        ;同一端口，写时表示写入命令字，读时表示读入硬盘状态
+    nop
+    in al,dx
+    and al,0x88	                                        ;第4位为1表示硬盘控制器已准备好数据传输，第7位为1表示硬盘忙
+    cmp al,0x08
+    jnz .not_ready	                                    ;若未准备好，继续等。
+ 
+                                                        ;第5步：从0x1f0端口读数据
+    mov ax, di                                          ;di当中存储的是要读取的扇区数
+    mov dx, 256                                         ;每个扇区512字节，一次读取两个字节，所以一个扇区就要读取256次，与扇区数相乘，就等得到总读取次数
+    mul dx                                              ;8位乘法与16位乘法知识查看书p133,注意：16位乘法会改变dx的值！！！！
+    mov cx, ax	                                        ; 得到了要读取的总次数，然后将这个数字放入cx中
+    mov dx, 0x1f0
+.go_on_read:
+    in ax,dx
+    mov [ebx],ax                                        ;与rd_disk_m_16相比，就是把这两句的bx改成了ebx
+    add ebx,2		        
+                                                        ; 由于在实模式下偏移地址为16位,所以用bx只会访问到0~FFFFh的偏移。
+                                                        ; loader的栈指针为0x900,bx为指向的数据输出缓冲区,且为16位，
+                                                        ; 超过0xffff后,bx部分会从0开始,所以当要读取的扇区数过大,待写入的地址超过bx的范围时，
+                                                        ; 从硬盘上读出的数据会把0x0000~0xffff的覆盖，
+                                                        ; 造成栈被破坏,所以ret返回时,返回地址被破坏了,已经不是之前正确的地址,
+                                                        ; 故程序出会错,不知道会跑到哪里去。
+                                                        ; 所以改为ebx代替bx指向缓冲区,这样生成的机器码前面会有0x66和0x67来反转。
+                                                        ; 0X66用于反转默认的操作数大小! 0X67用于反转默认的寻址方式.
+                                                        ; cpu处于16位模式时,会理所当然的认为操作数和寻址都是16位,处于32位模式时,
+                                                        ; 也会认为要执行的指令是32位.
+                                                        ; 当我们在其中任意模式下用了另外模式的寻址方式或操作数大小(姑且认为16位模式用16位字节操作数，
+                                                        ; 32位模式下用32字节的操作数)时,编译器会在指令前帮我们加上0x66或0x67，
+                                                        ; 临时改变当前cpu模式到另外的模式下.
+                                                        ; 假设当前运行在16位模式,遇到0X66时,操作数大小变为32位.
+                                                        ; 假设当前运行在32位模式,遇到0X66时,操作数大小变为16位.
+                                                        ; 假设当前运行在16位模式,遇到0X67时,寻址方式变为32位寻址
+                                                        ; 假设当前运行在32位模式,遇到0X67时,寻址方式变为16位寻址.
+    loop .go_on_read
     ret

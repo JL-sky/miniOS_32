@@ -65,6 +65,3 @@ DESC_VIDEO_HIGH4 equ (0x00<<24) + DESC_G_4K \
     PG_RW_W equ 10b
     PG_US_S equ 000b
     PG_US_U equ 100b
-
-;-----  程序段的类型定义  ---------
-    PT_NULL equ 0
