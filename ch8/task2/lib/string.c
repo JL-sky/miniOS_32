@@ -118,7 +118,6 @@ char *strchr(const char *str, const uint8_t ch)
 /*
 从后往前查找字符串str中首次出现字符ch的地址(不是下标,是地址)
 */
-
 char *strrchr(const char *str, const uint8_t ch)
 {
     ASSERT(str != NULL);

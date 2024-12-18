@@ -10,8 +10,13 @@ enum intr_status
     INTR_OFF, // 表示中断关闭
     INTR_ON   // 表示中断打开
 };
+
+/* 获取当前中断状态 */
 enum intr_status intr_get_status(void);
-enum intr_status intr_set_status(enum intr_status);
+/* 开中断并返回开中断前的状态*/
 enum intr_status intr_enable(void);
+/* 关中断,并且返回关中断前的状态 */
 enum intr_status intr_disable(void);
+/* 将中断状态设置为status */
+enum intr_status intr_set_status(enum intr_status);
 #endif
