@@ -36,7 +36,10 @@ static void make_idt_desc(struct gate_desc *p_gdesc, uint8_t attr, intr_handler 
 /*
 函数功能：构建中断描述符
 函数实现：按照中断描述符结构体定义填充字段
-参数：中断门描述符地址，属性，中断处理函数
+参数：
+    中断门描述符地址
+    属性
+    中断处理函数
 */
 static void make_idt_desc(struct gate_desc *p_gdesc, uint8_t attr, intr_handler function)
 {
