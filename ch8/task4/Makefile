@@ -21,7 +21,8 @@ LDFLAGS= -Ttext $(ENTRY_POINT) -e main -Map $(BIN_DIR)/kernel.map -m elf_i386
 OBJS=$(BIN_DIR)/main.o $(BIN_DIR)/init.o \
 	$(BIN_DIR)/interrupt.o  $(BIN_DIR)/kernel.o \
 	$(BIN_DIR)/print.o \
-	$(BIN_DIR)/string.o $(BIN_DIR)/debug.o	\
+	$(BIN_DIR)/bitmap.o $(BIN_DIR)/memory.o\
+	 $(BIN_DIR)/string.o $(BIN_DIR)/debug.o 
 
 # 编译mbr和loader
 boot:$(BIN_DIR)/mbr.o $(BIN_DIR)/loader.o
@@ -46,6 +47,12 @@ $(BIN_DIR)/debug.o:kernel/debug.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(BIN_DIR)/string.o:lib/string.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(BIN_DIR)/bitmap.o:lib/kernel/bitmap.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(BIN_DIR)/memory.o:kernel/memory.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 # 编译汇编内核代码

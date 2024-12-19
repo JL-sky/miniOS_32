@@ -22,9 +22,13 @@ gcc-4.4 -o $(pwd)/bin/init.o -c -fno-builtin -m32 -I $(pwd)/lib/kernel/ -I $(pwd
 gcc-4.4 -o $(pwd)/bin/debug.o -c -fno-builtin -m32 -I $(pwd)/lib/kernel/ -I $(pwd)/lib/ -I $(pwd)/kernel/ $(pwd)/kernel/debug.c
 # 编译string文件
 gcc-4.4 -o $(pwd)/bin/string.o -c -fno-builtin -m32 -I $(pwd)/lib/kernel/ -I $(pwd)/lib/ -I $(pwd)/kernel/ $(pwd)/lib/string.c
+# 编译bitmap文件
+gcc-4.4 -o $(pwd)/bin/bitmap.o -c -fno-builtin -m32 -I $(pwd)/lib/kernel/ -I $(pwd)/lib/ -I $(pwd)/kernel/ $(pwd)/lib/kernel/bitmap.c
+# 编译memory文件
+gcc-4.4 -o $(pwd)/bin/memory.o -c -fno-builtin -m32 -I $(pwd)/lib/kernel/ -I $(pwd)/lib/ -I $(pwd)/kernel/ $(pwd)/kernel/memory.c
 
 #将main函数与print函数进行链接
-ld -m elf_i386 -Ttext 0xc0001500 -e main -o $(pwd)/bin/kernel.bin $(pwd)/bin/main.o $(pwd)/bin/print.o $(pwd)/bin/init.o $(pwd)/bin/interrupt.o $(pwd)/bin/kernel.o $(pwd)/bin/string.o $(pwd)/bin/debug.o
+ld -m elf_i386 -Ttext 0xc0001500 -e main -o $(pwd)/bin/kernel.bin $(pwd)/bin/main.o $(pwd)/bin/print.o $(pwd)/bin/init.o $(pwd)/bin/interrupt.o $(pwd)/bin/kernel.o $(pwd)/bin/memory.o $(pwd)/bin/bitmap.o $(pwd)/bin/string.o $(pwd)/bin/debug.o
 
 #将内核文件写入磁盘，loader程序会将其加载到内存运行
 dd if=$(pwd)/bin/kernel.bin of=~/bochs/hd60M.img bs=512 count=200 conv=notrunc seek=9
