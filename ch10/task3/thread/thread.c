@@ -98,16 +98,6 @@ struct task_struct *thread_start(char *name, int prio, thread_func function, voi
     ASSERT(!elem_find(&thread_all_list, &thread->all_list_tag));
     list_append(&thread_all_list, &thread->all_list_tag);
 
-    // /*5.上述准备好线程运行时的栈信息后，即可运行执行函数了*/
-    // asm volatile("movl %0,%%esp;    \
-    //             pop %%ebp;          \
-    //             pop %%ebx;          \
-    //             pop %%edi;          \
-    //             pop %%esi;          \
-    //             ret"
-    //              :
-    //              : "g"(thread->self_kstack)
-    //              : "memory");
     return thread;
 }
 
