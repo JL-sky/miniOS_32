@@ -3,6 +3,7 @@
 #include "interrupt.h"
 #include "io.h"
 #include "global.h"
+#include "ioqueue.h"
 
 #define KBD_BUF_PORT 0x60 // 键盘buffer寄存器端口号为0x60
 
@@ -12,8 +13,7 @@
 #define tab '\t'
 #define backspace '\b'
 
-// 功能性 不可见字符均设置为0
-#define char_invisible 0
+#define char_invisible 0 // 功能性 不可见字符均设置为0
 #define ctrl_l_char char_invisible
 #define ctrl_r_char char_invisible
 #define shift_l_char char_invisible
@@ -33,10 +33,8 @@
 #define ctrl_r_break 0xe09d
 #define caps_lock_make 0x3a
 
-/*
-二维数组，用于记录从0x00到0x3a通码对应的按键的两种情况
-（如0x02，不加shift表示1，加了shift表示！）的ascii码值,如果没有，则用ascii0替代
-*/
+// 二维数组，用于记录从0x00到0x3a通码对应的按键的两种情况（如0x02，不加shift表示1，加了shift表示！）的ascii码值
+// 如果没有，则用ascii0替代
 char keymap[][2] = {
     /* 0x00 */ {0, 0},
     /* 0x01 */ {esc, esc},
@@ -104,6 +102,8 @@ int alt_status = 0;       // 用于记录是否按下alt键
 int caps_lock_status = 0; // 用于记录是否按下大写锁定
 int ext_scancode = 0;     // 用于记录是否是扩展码
 
+// 定义键盘循环缓冲区
+struct ioqueue kbd_buf;
 static void intr_keyboard_handler(void)
 {
     // 从0x60端口读入一个字
@@ -187,8 +187,16 @@ static void intr_keyboard_handler(void)
             if (shift_status + caps_lock_status == 1)
                 shift = 1; // shift和大写锁定，那么判断是否按下了一个，而且不能是同时按下，那么就能确定是要开启shift
         }
-        put_char(keymap[index][shift]); // 打印字符
-
+        // put_char(keymap[index][shift]); // 打印字符
+        char cur_char = keymap[index][shift];
+        if (cur_char)
+        {
+            if (!ioq_full(&kbd_buf))
+            {
+                put_char(cur_char);
+                ioq_putchar(&kbd_buf, cur_char);
+            }
+        }
         return;
     }
     else
