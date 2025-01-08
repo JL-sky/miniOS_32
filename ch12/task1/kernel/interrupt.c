@@ -93,8 +93,8 @@ static void idt_desc_init(void)
    {
       make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
    }
-   int lastindex = IDT_DESC_CNT - 1;
 
+   int lastindex = IDT_DESC_CNT - 1;
    // 单独处理系统调用,系统调用对应的中断门dpl为3,中断处理程序为汇编的syscall_handler
    make_idt_desc(&idt[lastindex], IDT_DESC_ATTR_DPL3, syscall_handler);
    put_str("   idt_desc_init done\n");

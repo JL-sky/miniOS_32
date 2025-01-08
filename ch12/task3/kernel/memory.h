@@ -62,6 +62,10 @@ uint32_t addr_v2p(uint32_t vaddr);
 void *get_user_pages(uint32_t pg_cnt);
 void *get_a_page(enum pool_flags pf, uint32_t vaddr);
 
+/*
+初始化内存块管理数组
+分别对应16、32、64、128、256、512、1024这7种大小内存块类型
+*/
 void block_desc_init(struct mem_block_desc *desc_array);
 void *sys_malloc(uint32_t size);
 #endif

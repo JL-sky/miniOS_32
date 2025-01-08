@@ -116,7 +116,7 @@ hd:
 	dd if=$(BUILD_DIR)/kernel.bin of=$(HD60M_PATH) bs=512 count=200 seek=9 conv=notrunc
 	
 clean:
-	@cd $(BUILD_DIR) && rm -f ./* && echo "remove ./build all done"
+	@cd $(BUILD_DIR) && rm -f ./* && echo "remove ./bin all done"
 #-f, --force忽略不存在的文件，从不给出提示，执行make clean就会删除build下所有文件
 
 build:$(BUILD_DIR)/kernel.bin
