@@ -6,7 +6,7 @@
 #include "thread.h"
 #include "debug.h"
 
-#define IRQ0_FREQUENCY 100 // 中断发生频率，100HZ，即每秒发生中断的次数
+#define IRQ0_FREQUENCY 100 // 定义我们想要的中断发生频率，100HZ
 #define mil_seconds_per_intr (1000 / IRQ0_FREQUENCY)
 
 uint32_t ticks; // ticks是内核自中断开启以来总共的嘀嗒数

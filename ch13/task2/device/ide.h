@@ -3,28 +3,19 @@
 #include "stdint.h"
 #include "sync.h"
 #include "bitmap.h"
-/*分区结构*/
+/* 分区结构 */
 struct partition
 {
-    // 起始扇区
-    uint32_t start_lba;
-    // 扇区数
-    uint32_t sec_cnt;
-    // 分区所属的磁盘
-    struct disk *my_disk;
-    // 队列节点标记，用于将分区形成链表进行管理
-    struct list_elem part_tag;
-    // 分区名称
-    char name[8];
-    // 本分区的超级块
-    struct super_block *sb;
-    // 块位图
-    struct bitmap block_bitmap;
-    // inode节点位图
-    struct bitmap inode_bitmap;
-    // 本分区打开的inode节点队列
-    struct list open_inodes;
-}
+    uint32_t start_lba;         // 起始扇区
+    uint32_t sec_cnt;           // 扇区数
+    struct disk *my_disk;       // 分区所属的硬盘
+    struct list_elem part_tag;  // 用于队列中的标记，用于将分区形成链表进行管理
+    char name[8];               // 分区名称
+    struct super_block *sb;     // 本分区的超级块
+    struct bitmap block_bitmap; // 块位图
+    struct bitmap inode_bitmap; // i结点位图
+    struct list open_inodes;    // 本分区打开的i结点队列
+};
 
 /*硬盘结构*/
 struct disk
