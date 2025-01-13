@@ -222,7 +222,6 @@ void thread_unblock(struct task_struct *pthread)
 }
 
 /* 主动让出cpu,换其它线程运行 */
-
 void thread_yield(void)
 {
    struct task_struct *cur = running_thread();
