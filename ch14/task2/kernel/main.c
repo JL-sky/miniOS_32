@@ -104,9 +104,11 @@ void u_prog_b(void)
    printf(" prog_b malloc addr:0x%x,0x%x,0x%x\n", (int)addr1, (int)addr2, (int)addr3);
 
    int cpu_delay = 100000;
-   while (cpu_delay-- > 0);
+   while (cpu_delay-- > 0)
+      ;
    free(addr1);
    free(addr2);
    free(addr3);
-   while (1);
+   while (1)
+      ;
 }
