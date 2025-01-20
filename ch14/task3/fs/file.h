@@ -4,7 +4,8 @@
 #include "inode.h"
 #include "dir.h"
 
-#define MAX_FILE_OPEN 32 // 系统可打开的最大文件数
+// 系统可打开的最大文件数
+#define MAX_FILE_OPEN 32
 
 /* 文件结构 */
 struct file
